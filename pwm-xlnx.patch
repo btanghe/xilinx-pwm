@@ -1,0 +1,316 @@
+diff --git a/Documentation/devicetree/bindings/pwm/pwm-xlnx.txt b/Documentation/devicetree/bindings/pwm/pwm-xlnx.txt
+deleted file mode 100644
+index 16493f9..0000000
+--- a/Documentation/devicetree/bindings/pwm/pwm-xlnx.txt
++++ /dev/null
+@@ -1,76 +0,0 @@
+-Xilinx PWM controller
+-
+-This driver works together with the Xilinx Axi timer hardware core.
+-The core is available for the microblaze, powerpc and arm based Xilinx
+-platforms.
+-
+-The axi timer core is implemented in the pl (programmable logic) of the
+-fpga. The amount is user defined. Each core has two timers and one pwm output.
+-
+-After genereating the design and bitstream, you have to use the Xilinx device 
+-tree generator (git://git.xilinx.com/device-tree.git) to generate the dts 
+-file or the petalinux tools (http://www.xilinx.com/tools/petalinux-sdk.htm).
+-
+-Within this dts file, you find the axi-timer and clock definitions. 
+-
+-		axi_timer_0: timer@42800000 {
+-			clock-frequency = <100000000>;
+-			compatible = "xlnx,axi-timer-2.0", "xlnx,xps-timer-1.00.a";
+-			reg = <0x42800000 0x10000>;
+-			xlnx,count-width = <0x20>;
+-			xlnx,gen0-assert = <0x1>;
+-			xlnx,gen1-assert = <0x1>;
+-			xlnx,one-timer-only = <0x0>;
+-			xlnx,trig0-assert = <0x1>;
+-			xlnx,trig1-assert = <0x1>;
+-		} ;
+-
+-		...
+-
+-		ps7_slcr_0: ps7-slcr@f8000000 {
+-			compatible = "xlnx,ps7-slcr-1.00.a", "xlnx,zynq-slcr";
+-			reg = <0xf8000000 0x1000>;
+-			clocks {
+-				#address-cells = <1>;
+-				#size-cells = <0>;
+-				clkc: clkc {
+-					#clock-cells = <1>;
+-					clock-output-names = "armpll", "ddrpll", "iopll", "cpu_6or4x", "cpu_3or2x",
+-						"cpu_2x", "cpu_1x", "ddr2x", "ddr3x", "dci",
+-						"lqspi", "smc", "pcap", "gem0", "gem1",
+-						"fclk0", "fclk1", "fclk2", "fclk3", "can0",
+-						"can1", "sdio0", "sdio1", "uart0", "uart1",
+-						"spi0", "spi1", "dma", "usb0_aper", "usb1_aper",
+-						"gem0_aper", "gem1_aper", "sdio0_aper", "sdio1_aper", "spi0_aper",
+-						"spi1_aper", "can0_aper", "can1_aper", "i2c0_aper", "i2c1_aper",
+-						"uart0_aper", "uart1_aper", "gpio_aper", "lqspi_aper", "smc_aper",
+-						"swdt", "dbg_trc", "dbg_apb";
+-					compatible = "xlnx,ps7-clkc";
+-					fclk-enable = <0xf>;
+-					ps-clk-frequency = <33333333>;
+-				} ;
+-			} ;
+-		} ;
+-
+-Some required properties should be changed
+-- compatible: should be "xlnx,pwm-xlnx"
+-- add the right clock source to the description - clocks = <&clkc 15>; - is fclk0 in this design
+-- add #pwm-cells = <1>;
+-
+-Examples:
+-
+-		axi_timer_0: timer@42800000 {
+-			clock-frequency = <100000000>;
+-			#pwm-cells = <1>;
+-			clocks = <&clkc 15>;
+-			compatible = "xlnx,xlnx-pwm";
+-			reg = <0x42800000 0x10000>;
+-			xlnx,count-width = <0x20>;
+-			xlnx,gen0-assert = <0x1>;
+-			xlnx,gen1-assert = <0x1>;
+-			xlnx,one-timer-only = <0x0>;
+-			xlnx,trig0-assert = <0x1>;
+-			xlnx,trig1-assert = <0x1>;
+-		} ;
+-
+-Generate the dtb file and load it on the target platform.
+diff --git a/drivers/pwm/Kconfig b/drivers/pwm/Kconfig
+index 1d59b02..eece329 100644
+--- a/drivers/pwm/Kconfig
++++ b/drivers/pwm/Kconfig
+@@ -233,17 +233,4 @@ config PWM_VT8500
+ 	  To compile this driver as a module, choose M here: the module
+ 	  will be called pwm-vt8500.
+ 
+-config PWM_XLNX
+-	tristate "Xilinx PWM support"
+-	help
+-	  Generic PWM framework driver for xilinx axi timer.
+-
+-	  This driver implements the pwm channel of a xilinx axi timer hardware
+-	  block.
+-	  The hardware block has to be configured with generate output signal 
+-	  of timer 1 and timer 2 active high.
+-
+-	  To compile this driver as a module, choose M here: the module
+-	  will be called pwm-xlnx.
+-
+ endif
+diff --git a/drivers/pwm/Makefile b/drivers/pwm/Makefile
+index e0c5f59..8b754e4 100644
+--- a/drivers/pwm/Makefile
++++ b/drivers/pwm/Makefile
+@@ -21,4 +21,3 @@ obj-$(CONFIG_PWM_TIPWMSS)	+= pwm-tipwmss.o
+ obj-$(CONFIG_PWM_TWL)		+= pwm-twl.o
+ obj-$(CONFIG_PWM_TWL_LED)	+= pwm-twl-led.o
+ obj-$(CONFIG_PWM_VT8500)	+= pwm-vt8500.o
+-obj-$(CONFIG_PWM_XLNX)		+= pwm-xlnx.o
+diff --git a/drivers/pwm/pwm-xlnx.c b/drivers/pwm/pwm-xlnx.c
+deleted file mode 100644
+index 04af634..0000000
+--- a/drivers/pwm/pwm-xlnx.c
++++ /dev/null
+@@ -1,197 +0,0 @@
+-/*
+- * pwm-xlnx driver
+- * Tested on zedboard - axi timer v2.00a
+- *
+- * Copyright (C) 2014 Thomas More
+- *
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License as published by
+- * the Free Software Foundation; version 2.
+- */
+-
+-#include <linux/clk.h>
+-#include <linux/err.h>
+-#include <linux/io.h>
+-#include <linux/module.h>
+-#include <linux/of.h>
+-#include <linux/platform_device.h>
+-#include <linux/pwm.h>
+-
+-/* mmio regiser mapping */
+-
+-#define OFFSET		0x10
+-#define DUTY		0x14
+-#define PERIOD		0x04
+-
+-/* configure the counters as 32 bit counters */
+-
+-#define PWM_CONF	0x00000206
+-#define PWM_ENABLE	0x00000080
+-
+-#define DRIVER_AUTHOR "Bart Tanghe <bart.tanghe@thomasmore.be>"
+-#define DRIVER_DESC "A Xilinx pwm driver"
+-
+-struct xlnx_pwm_chip {
+-	struct pwm_chip chip;
+-	struct device *dev;
+-	int scaler;
+-	void __iomem *mmio_base;
+-};
+-
+-static inline struct xlnx_pwm_chip *to_xlnx_pwm_chip(
+-					struct pwm_chip *chip){
+-
+-	return container_of(chip, struct xlnx_pwm_chip, chip);
+-}
+-
+-static int xlnx_pwm_config(struct pwm_chip *chip,
+-			      struct pwm_device *pwm,
+-			      int duty_ns, int period_ns){
+-
+-	struct xlnx_pwm_chip *pc;
+-
+-	pc = container_of(chip, struct xlnx_pwm_chip, chip);
+-
+-	iowrite32((duty_ns/pc->scaler) - 2, pc->mmio_base + DUTY);
+-	iowrite32((period_ns/pc->scaler) - 2, pc->mmio_base + PERIOD);
+-
+-	return 0;
+-}
+-
+-static int xlnx_pwm_enable(struct pwm_chip *chip,
+-			      struct pwm_device *pwm){
+-
+-	struct xlnx_pwm_chip *pc;
+-
+-	pc = container_of(chip, struct xlnx_pwm_chip, chip);
+-
+-	iowrite32(ioread32(pc->mmio_base) | PWM_ENABLE, pc->mmio_base);
+-	iowrite32(ioread32(pc->mmio_base + OFFSET) | PWM_ENABLE,
+-						pc->mmio_base + OFFSET);
+-	return 0;
+-}
+-
+-static void xlnx_pwm_disable(struct pwm_chip *chip,
+-				struct pwm_device *pwm)
+-{
+-	struct xlnx_pwm_chip *pc;
+-
+-	pc = to_xlnx_pwm_chip(chip);
+-
+-	iowrite32(ioread32(pc->mmio_base) & ~PWM_ENABLE, pc->mmio_base);
+-	iowrite32(ioread32(pc->mmio_base + OFFSET) & ~PWM_ENABLE,
+-						pc->mmio_base + OFFSET);
+-}
+-
+-static int xlnx_set_polarity(struct pwm_chip *chip, struct pwm_device *pwm,
+-				enum pwm_polarity polarity)
+-{
+-	struct xlnx_pwm_chip *pc;
+-
+-	pc = to_xlnx_pwm_chip(chip);
+-
+-	/* no implementation of polarity function
+-	   the axi timer hw block doesn't support this
+-	*/
+-
+-	return 0;
+-}
+-
+-static const struct pwm_ops xlnx_pwm_ops = {
+-	.config = xlnx_pwm_config,
+-	.enable = xlnx_pwm_enable,
+-	.disable = xlnx_pwm_disable,
+-	.set_polarity = xlnx_set_polarity,
+-	.owner = THIS_MODULE,
+-};
+-
+-static int xlnx_pwm_probe(struct platform_device *pdev)
+-{
+-	struct xlnx_pwm_chip *pwm;
+-
+-	int ret;
+-	struct resource *r;
+-	u32 start, end;
+-	struct clk *clk;
+-
+-	pwm = devm_kzalloc(&pdev->dev, sizeof(*pwm), GFP_KERNEL);
+-	if (!pwm) {
+-		return -ENOMEM;
+-	}
+-
+-	pwm->dev = &pdev->dev;
+-
+-	clk = devm_clk_get(&pdev->dev, NULL);
+-	if (IS_ERR(clk)) {
+-		dev_err(&pdev->dev, "could not find clk: %ld\n", PTR_ERR(clk));
+-		devm_kfree(&pdev->dev, pwm);
+-		return PTR_ERR(clk);
+-	}
+-
+-	/* catch the difference between the clock and the basic time base ns */
+-	pwm->scaler = (int)1000000000/clk_get_rate(clk);
+-
+-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+-	pwm->mmio_base = devm_ioremap_resource(&pdev->dev, r);
+-	if (IS_ERR(pwm->mmio_base)) {
+-		devm_kfree(&pdev->dev, pwm);
+-		return PTR_ERR(pwm->mmio_base);
+-	}
+-
+-	start = r->start;
+-	end = r->end;
+-
+-	pwm->chip.dev = &pdev->dev;
+-	pwm->chip.ops = &xlnx_pwm_ops;
+-	pwm->chip.base = (int)&pdev->id;
+-	pwm->chip.npwm = 1;
+-
+-	ret = pwmchip_add(&pwm->chip);
+-	if (ret < 0) {
+-		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
+-		devm_kfree(&pdev->dev, pwm);
+-		return -1;
+-	}
+-
+-	/*set the pwm0 configuration*/
+-	iowrite32(PWM_CONF, pwm->mmio_base);
+-	iowrite32(PWM_CONF, pwm->mmio_base + OFFSET);
+-
+-	platform_set_drvdata(pdev, pwm);
+-
+-	return 0;
+-}
+-
+-static int xlnx_pwm_remove(struct platform_device *pdev)
+-{
+-
+-	struct xlnx_pwm_chip *pc;
+-	pc = platform_get_drvdata(pdev);
+-
+-	if (WARN_ON(!pc))
+-		return -ENODEV;
+-
+-	return pwmchip_remove(&pc->chip);
+-}
+-
+-static const struct of_device_id xlnx_pwm_of_match[] = {
+-	{ .compatible = "xlnx,pwm-xlnx", },
+-	{ /* sentinel */ }
+-};
+-
+-MODULE_DEVICE_TABLE(of, xlnx_pwm_of_match);
+-
+-static struct platform_driver xlnx_pwm_driver = {
+-	.driver = {
+-		.name = "pwm-xlnx",
+-		.owner = THIS_MODULE,
+-		.of_match_table = xlnx_pwm_of_match,
+-	},
+-	.probe = xlnx_pwm_probe,
+-	.remove = xlnx_pwm_remove,
+-};
+-module_platform_driver(xlnx_pwm_driver);
+-
+-MODULE_LICENSE("GPL v2");
+-MODULE_AUTHOR(DRIVER_AUTHOR);
+-MODULE_DESCRIPTION(DRIVER_DESC);

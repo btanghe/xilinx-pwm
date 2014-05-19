@@ -1,13 +1,7 @@
-xilinx-pwm
-==========
-
 Xilinx PWM controller
 
-This driver is provided as is. No guarantee.
-Tested on zedboard. 
-
 This driver works together with the Xilinx Axi timer hardware core.
-The core is available for the microblaze and Arm based Xilinx
+The core is available for the microblaze, powerpc and arm based Xilinx
 platforms.
 
 The axi timer core is implemented in the pl (programmable logic) of the
@@ -61,13 +55,13 @@ Within this dts file, you find the axi-timer and clock definitions.
 Some required properties should be changed
 - compatible: should be "xlnx,pwm-xlnx"
 - add the right clock source to the description - clocks = <&clkc 15>; - is fclk0 in this design
-- add #pwm-cells = <2>;
+- add #pwm-cells = <1>;
 
 Examples:
 
 		axi_timer_0: timer@42800000 {
 			clock-frequency = <100000000>;
-			#pwm-cells = <2>;
+			#pwm-cells = <1>;
 			clocks = <&clkc 15>;
 			compatible = "xlnx,xlnx-pwm";
 			reg = <0x42800000 0x10000>;
@@ -80,32 +74,3 @@ Examples:
 		} ;
 
 Generate the dtb file and load it on the target platform.
-
-Compile the pwm drivers as module or in the kernel.
-cp pwm-xlnx.c into the drivers/pwm/pwm folder and change the Kconfig and Makefile.
-You can also patch the pwm-xlnx.patch file (I'm using kernel 3.14 in the xilinx-tree).
-
-The driver will register all the hardware timers, signed by compatible = "xlnx,xlnx-pwm"
-
-Example - 4 timers makes 
-	/sys/class/pwm/pwmchip0
-	/sys/class/pwm/pwmchip1
-	/sys/class/pwm/pwmchip2
-	/sys/class/pwm/pwmchip3
-	
-
-Using the driver
-==========
-
-## Export the pwm channel
-	echo 0 > /sys/class/pwm/pwmchip0/export			
-	cd /sys/class/pwm/pwmchip0/pwm0/
-
-## Set the duty cycle and period 
-
-	echo 100000 > period		//period is 100us
-	echo 30000  > duty_cycle	//duty_cycle of 30 us
-	echo 1 > enable
-
-
-
