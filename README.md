@@ -87,7 +87,7 @@ You can also patch the pwm-xlnx.patch file (I'm using kernel 3.14 in the xilinx-
 
 The driver will register all the hardware timers, signed by compatible = "xlnx,xlnx-pwm"
 
-Example - 4 timers makes 
+## Example - 4 timers
 	/sys/class/pwm/pwmchip0
 	/sys/class/pwm/pwmchip1
 	/sys/class/pwm/pwmchip2
